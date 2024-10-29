@@ -83,5 +83,37 @@ These queries can be found in the queries.sql file in the repository.
 7. Conclusion
 This case study highlights the importance of data cleansing in achieving reliable insights, especially when analyzing customer segments and sales performance over time. By transforming and enriching the data, we could reveal trends and make data-driven recommendations to enhance Data Mart’s business strategies.
 
-Thank you for exploring this case study! 😊
+ A summary of the analyses and insights gathered from Case 5:
+
+1. Day of the Week and Missing Week Numbers
+Day of the Week: Each week_date typically represents the start of the week, providing a consistent basis for weekly reporting. This is helpful for analyzing weekly trends.
+Missing Week Numbers: Some week numbers are missing in the dataset, indicating that there were no recorded transactions for these weeks. This may require attention when interpreting results as certain weeks are unaccounted for in the data.
+
+2. Total Transactions by Year
+Transaction volumes show a steady increase from 2018 to 2020. This suggests a growing customer base for Data Mart or an increase in purchase frequency over the years.
+
+3. Sales by Region and Month
+Sales vary by month, indicating seasonal trends, with a noticeable increase during holiday periods.
+Regional Sales: Certain regions consistently lead in sales performance, while others lag, providing opportunities for targeted regional strategies.
+
+4. Platform Comparison (Retail vs. Shopify)
+Retail vs. Shopify: Retail consistently outperforms Shopify in monthly sales, which may be due to higher in-store traffic or local customer preference for physical shopping. This provides valuable insights for platform-specific marketing strategies.
+
+5. Demographic and Age Band Insights
+Demographic Contribution: Families make up a large portion of total sales, with Retirees also showing significant engagement, especially on the Retail platform.
+Age Band Performance: Young Adults are less represented, suggesting a potential area for growth through targeted campaigns.
+
+6. Impact of Sustainable Packaging
+Following the implementation of sustainable packaging on June 15, 2020, there was an observable increase in sales, suggesting positive customer response. This could encourage further sustainability initiatives in future marketing.
+
+Key Recommendations
+Regional Campaigns: Focus on underperforming regions to increase local engagement.
+Targeted Marketing for Families and Retirees: Families and Retirees are significant contributors to in-store sales, so targeted campaigns aimed at these groups could enhance sales.
+Shopify Optimization: Given the lower performance of Shopify compared to Retail, optimizing Shopify listings and promotions could help bridge the gap.
+Highlight Sustainable Practices: Customers reacted positively to sustainable packaging, so emphasizing similar initiatives in future promotions could boost customer loyalty.
+These insights and recommendations provide Data Mart with a clearer understanding of customer behavior across platforms and demographics, guiding future strategy for targeted growth.
+
+
+Thank you for exploring this case study and DANNY MA! 😊
+https://8weeksqlchallenge.com/case-study-5/
 

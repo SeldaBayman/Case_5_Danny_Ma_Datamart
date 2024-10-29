@@ -1,0 +1,186 @@
+Step 1: Data Cleansing and Preparation
+In this part, we’ll create a clean version of the dataset called clean_weekly_sales. Each transformation will be included in CTEs to ensure each step is clear and the final data meets the requirements.
+
+-- Create a new cleaned table in the data_mart schema
+CREATE TABLE data_mart.clean_weekly_sales AS
+WITH base_data AS (
+    SELECT 
+        CAST(week_date AS DATE) AS week_date,
+        EXTRACT(WEEK FROM week_date) AS week_number,
+        EXTRACT(MONTH FROM week_date) AS month_number,
+        EXTRACT(YEAR FROM week_date) AS calendar_year,
+        sales,
+        transactions,
+        region,
+        platform,
+        segment
+    FROM data_mart.raw_weekly_sales
+),
+age_demographic AS (
+    SELECT 
+        week_date,
+        week_number,
+        month_number,
+        calendar_year,
+        sales,
+        transactions,
+        region,
+        platform,
+        segment,
+        CASE 
+            WHEN segment = '1' THEN 'Young Adults'
+            WHEN segment = '2' THEN 'Middle Aged'
+            WHEN segment IN ('3', '4') THEN 'Retirees'
+            ELSE 'unknown'
+        END AS age_band,
+        CASE 
+            WHEN LEFT(segment, 1) = 'C' THEN 'Couples'
+            WHEN LEFT(segment, 1) = 'F' THEN 'Families'
+            ELSE 'unknown'
+        END AS demographic
+    FROM base_data
+),
+final_data AS (
+    SELECT 
+        week_date,
+        week_number,
+        month_number,
+        calendar_year,
+        COALESCE(segment, 'unknown') AS segment,
+        COALESCE(age_band, 'unknown') AS age_band,
+        COALESCE(demographic, 'unknown') AS demographic,
+        region,
+        platform,
+        sales,
+        transactions,
+        ROUND(sales::NUMERIC / NULLIF(transactions, 0), 2) AS avg_transaction
+    FROM age_demographic
+)
+SELECT * FROM final_data;
+
+Step 2: Data Exploration Queries
+These queries will dive into specific metrics, using clean_weekly_sales as the base table.
+
+--2.1. Day of the Week for week_date
+
+SELECT DISTINCT TO_CHAR(week_date, 'Day') AS day_of_week FROM data_mart.clean_weekly_sales;
+
+--2.2. Missing Week Numbers
+
+SELECT week_number
+FROM generate_series (1, 52) AS week_number
+WHERE week_number NOT IN (
+    SELECT DISTINCT week_number FROM data_mart.clean_weekly_sales
+);
+
+--2.3. Total Transactions per Year
+
+SELECT calendar_year, 
+SUM(transactions) AS total_transactions
+FROM data_mart.clean_weekly_sales
+GROUP BY calendar_year
+ORDER BY calendar_year;
+
+--2.4. Total Sales per Region and Month
+
+SELECT region, 
+month_number, 
+SUM(sales) AS total_sales
+FROM data_mart.clean_weekly_sales
+GROUP BY region, month_number
+ORDER BY region, month_number;
+
+--2.5. Total Transactions per Platform
+
+SELECT platform, 
+COUNT(transactions) AS transaction_count
+FROM data_mart.clean_weekly_sales
+GROUP BY platform;
+
+--2.6. Percentage of Sales by Platform for Each Month
+
+SELECT 
+    month_number,
+    platform,
+    ROUND (SUM(sales) * 100.0 / SUM(SUM(sales)) OVER (PARTITION BY month_number), 2) AS sales_percentage
+FROM data_mart.clean_weekly_sales
+GROUP BY month_number, platform;
+
+--2.7. Percentage of Sales by Demographic per Year
+
+SELECT 
+    calendar_year,
+    demographic,
+    ROUND(SUM(sales) * 100.0 / SUM(SUM(sales)) OVER (PARTITION BY calendar_year), 2) AS sales_percentage
+FROM data_mart.clean_weekly_sales
+GROUP BY calendar_year, demographic;
+
+--2.8. Top Age Band and Demographic for Retail Sales
+
+SELECT age_band, 
+demographic, 
+SUM(sales) AS retail_sales
+FROM data_mart.clean_weekly_sales
+WHERE platform = 'Retail'
+GROUP BY age_band, demographic
+ORDER BY retail_sales DESC
+LIMIT 1;
+
+--Step 3: Before & After Analysis
+Using 2020-06-15 as the reference week, we’ll compare sales data from four and twelve weeks before and after this date.
+
+--3.1. Sales for 4 Weeks Before and After 2020-06-15
+
+WITH sales_comparison AS (
+    SELECT 
+        CASE WHEN week_date < '2020-06-15' THEN 'Before' ELSE 'After' END AS period,
+        SUM(sales) AS total_sales
+    FROM data_mart.clean_weekly_sales
+    WHERE week_date BETWEEN '2020-05-18' AND '2020-07-13'
+    GROUP BY period
+)
+SELECT 
+    period,
+    total_sales,
+    LAG(total_sales) OVER (ORDER BY period) AS prev_sales,
+    ROUND((total_sales - LAG(total_sales) OVER (ORDER BY period)) * 100.0 / NULLIF (LAG(total_sales) OVER (ORDER BY period), 0), 2) AS growth_rate
+FROM sales_comparison;
+
+--3.2. Sales for 12 Weeks Before and After
+-- Repeat the previous query but change the date range to 12 weeks
+WITH sales_comparison AS (
+    SELECT 
+        CASE 
+            WHEN week_date < '2020-06-15' THEN 'Before'
+            ELSE 'After' 
+        END AS period,
+        SUM(sales) AS total_sales
+    FROM data_mart.clean_weekly_sales
+    WHERE week_date BETWEEN '2020-03-23' AND '2020-09-07' -- 12 weeks before and after 2020-06-15
+    GROUP BY period
+)
+SELECT 
+    period,
+    total_sales,
+    LAG(total_sales) OVER (ORDER BY period) AS prev_sales,
+    ROUND((total_sales - LAG(total_sales) OVER (ORDER BY period)) * 100.0 / NULLIF(LAG(total_sales) OVER (ORDER BY period), 0), 2) AS growth_rate_percentage
+FROM sales_comparison;
+
+--Step 4: Bonus - Analyzing Impact in 2020
+This analysis focuses on which areas were most affected in 2020.
+
+--4.1. Impact by Region, Platform, Age Band, and Demographic
+SELECT 
+    region,
+    platform,
+    age_band,
+    demographic,
+    SUM(CASE WHEN week_date < '2020-06-15' THEN sales ELSE 0 END) AS sales_before,
+    SUM(CASE WHEN week_date >= '2020-06-15' THEN sales ELSE 0 END) AS sales_after,
+    ROUND((SUM(CASE WHEN week_date >= '2020-06-15' THEN sales ELSE 0 END) - 
+           SUM(CASE WHEN week_date < '2020-06-15' THEN sales ELSE 0 END)) * 100.0 / 
+          NULLIF(SUM(CASE WHEN week_date < '2020-06-15' THEN sales ELSE 0 END), 0), 2) AS impact_rate
+FROM data_mart.clean_weekly_sales
+WHERE calendar_year = 2020
+GROUP BY region, platform, age_band, demographic
+ORDER BY impact_rate ASC;
